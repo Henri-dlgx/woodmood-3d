@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Local-only app: nothing may load from or connect to another host. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' blob: data:; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>WoodMood 3D</title>
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="vendor/model-viewer-4.4.0.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <span class="logo" role="img" aria-label="WoodMood"></span>
+    <span class="title">Aperçu 3D</span>
+  </header>
+
+  <main class="stage">
+  <form id="gate" class="gate" autocomplete="on">
+    <div class="gate-card">
+      <h1>Aperçu privé</h1>
+      <p>Entrez le mot de passe pour afficher le poêle.</p>
+      <input type="text" name="username" value="woodmood-3d" autocomplete="username" hidden>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+      <label class="remember"><input id="remember" type="checkbox"> Se souvenir sur cet appareil</label>
+      <button id="unlock" type="submit">Ouvrir</button>
+      <p id="gateMsg" class="gate-msg" role="alert"></p>
+    </div>
+  </form>
+
+  <model-viewer id="stove"
+    alt="Poêle WoodMood en 3D, taille réelle"
+    ar ar-modes="webxr quick-look" ar-scale="fixed" ar-placement="floor"
+    camera-controls touch-action="pan-y" interaction-prompt="none"
+    camera-orbit="28deg 76deg auto" field-of-view="30deg"
+    max-camera-orbit="auto 92deg auto"
+    environment-image="neutral" exposure="1.15"
+    shadow-intensity="1" shadow-softness="0.7">
+
+    <!-- Dimension lines: corner dots + labels, positioned from the model in app.js -->
+    <button slot="hotspot-p-left"  class="dot" data-position="0 0 0" data-normal="0 0 1" tabindex="-1"></button>
+    <button slot="hotspot-p-corner" class="dot" data-position="0 0 0" data-normal="1 0 1" tabindex="-1"></button>
+    <button slot="hotspot-p-top"   class="dot" data-position="0 0 0" data-normal="1 0 1" tabindex="-1"></button>
+    <button slot="hotspot-p-back"  class="dot" data-position="0 0 0" data-normal="1 0 0" tabindex="-1"></button>
+    <button slot="hotspot-l-width"  class="dim" data-position="0 0 0" data-normal="0 0 1" tabindex="-1"></button>
+    <button slot="hotspot-l-height" class="dim" data-position="0 0 0" data-normal="1 0 1" tabindex="-1"></button>
+    <button slot="hotspot-l-depth"  class="dim" data-position="0 0 0" data-normal="1 0 0" tabindex="-1"></button>
+    <svg id="dimLines" class="dim-lines" width="100%" height="100%" aria-hidden="true">
+      <line class="dim-line" data-from="p-left"   data-to="p-corner" data-label="l-width"></line>
+      <line class="dim-line" data-from="p-corner" data-to="p-top"    data-label="l-height"></line>
+      <line class="dim-line" data-from="p-corner" data-to="p-back"   data-label="l-depth"></line>
+    </svg>
+
+    <button slot="ar-button" id="arButton" class="ar-btn">Voir chez moi</button>
+
+    <div id="progress" class="progress" slot="progress-bar"><span></span></div>
+  </model-viewer>
+  </main>
+
+  <footer class="panel" id="panel" hidden>
+    <div class="size" id="sizeText">—</div>
+    <div class="controls">
+      <button id="dimToggle" class="chip" aria-pressed="true">Cotes</button>
+      <div class="seg" role="radiogroup" aria-label="Placement en réalité augmentée">
+        <button class="chip" role="radio" aria-checked="true"  data-placement="floor">Au sol</button>
+        <button class="chip" role="radio" aria-checked="false" data-placement="wall">Contre un mur</button>
+      </div>
+    </div>
+    <p class="note" id="arNote">
+      Taille réelle verrouillée. En réalité augmentée, comptez 1 à 5 cm d'écart selon le téléphone et le sol.
+      Les distances de sécurité aux murs restent celles de la notice.
+    </p>
+  </footer>
+</body>
+</html>

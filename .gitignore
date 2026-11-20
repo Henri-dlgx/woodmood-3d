@@ -1,0 +1,9 @@
+# Only the encrypted model may be published
+*.glb
+*.gltf
+*.usdz
+*.step
+*.stp
+*.stl
+*.f3d
+.DS_Store
