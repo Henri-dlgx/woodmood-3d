@@ -94,6 +94,32 @@ model-viewer.no-dims .dim, model-viewer.no-dims .dim-lines { display: none; }
   box-shadow: 0 6px 20px rgba(0,0,0,.5);
 }
 
+/* Door buttons, bottom right over the 3D view */
+.door-fab {
+  position: absolute; right: 16px; bottom: 16px; z-index: 4;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+}
+.door-fab[hidden] { display: none; }
+.fab {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid #555; border-radius: 999px;
+  background: rgba(18,18,18,.88); color: var(--text);
+  font: 600 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 11px 16px 11px 13px; cursor: pointer;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
+  transition: background .2s, border-color .2s, color .2s;
+}
+.fab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.fab svg circle { fill: currentColor; stroke: none; }
+.fab[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.fab:disabled { opacity: .6; cursor: default; }
+/* Narrow screens: AR button moves left so it never sits under the door buttons */
+@media (max-width: 600px) {
+  .ar-btn { left: 16px; transform: none; padding: 13px 20px; font-size: 15px; }
+}
+
 .progress { position: absolute; left: 0; right: 0; top: 0; height: 3px; }
 .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .progress.done { display: none; }

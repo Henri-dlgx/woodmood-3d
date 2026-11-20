@@ -155,27 +155,42 @@ mv.addEventListener('progress', (e) => {
 // --- Doors ------------------------------------------------------------------
 // The model has "open_<door>" / "close_<door>" clips; appendAnimation lets
 // each door run on its own (one clip per door at a time, held at its end).
+// Button 1 = stove door, button 2 = both cassette rear doors together.
 const doorBox = document.getElementById('doors');
-mv.addEventListener('load', () => {
-  const anims = new Set(mv.availableAnimations || []);
-  let any = false;
-  for (const btn of doorBox.querySelectorAll('[data-door]')) {
-    const ok = anims.has('open_' + btn.dataset.door) && anims.has('close_' + btn.dataset.door);
-    btn.hidden = !ok;
-    btn.setAttribute('aria-pressed', 'false');
-    any ||= ok;
-  }
-  doorBox.hidden = !any;
-});
-doorBox.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-door]');
-  if (!btn) return;
-  const door = btn.dataset.door;
-  const open = btn.getAttribute('aria-pressed') !== 'true';
-  mv.detachAnimation((open ? 'close_' : 'open_') + door, { fade: false });
-  mv.appendAnimation((open ? 'open_' : 'close_') + door, { repetitions: 1 });
+const SWING_MS = 1300;
+function setDoorButton(btn, open) {
   btn.setAttribute('aria-pressed', String(open));
-});
+  btn.querySelector('span').textContent = open ? btn.dataset.close : btn.dataset.open;
+}
+if (doorBox) {
+  mv.addEventListener('load', () => {
+    const anims = new Set(mv.availableAnimations || []);
+    let any = false;
+    for (const btn of doorBox.querySelectorAll('[data-doors]')) {
+      const doors = btn.dataset.doors.split(' ');
+      const ok = doors.every((d) => anims.has('open_' + d) && anims.has('close_' + d));
+      btn.hidden = !ok;
+      setDoorButton(btn, false);
+      any ||= ok;
+    }
+    doorBox.hidden = !any;
+  });
+  // In WebXR AR, a tap on these buttons must not also count as a tap on the
+  // scene (which would move the stove).
+  doorBox.addEventListener('beforexrselect', (e) => e.preventDefault());
+  doorBox.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-doors]');
+    if (!btn || btn.disabled) return;
+    const open = btn.getAttribute('aria-pressed') !== 'true';
+    for (const door of btn.dataset.doors.split(' ')) {
+      mv.detachAnimation((open ? 'close_' : 'open_') + door, { fade: false });
+      mv.appendAnimation((open ? 'open_' : 'close_') + door, { repetitions: 1 });
+    }
+    setDoorButton(btn, open);
+    btn.disabled = true;                       // no double taps mid-swing
+    setTimeout(() => { btn.disabled = false; }, SWING_MS);
+  });
+}
 
 // --- Controls ---------------------------------------------------------------
 const dimToggle = document.getElementById('dimToggle');
