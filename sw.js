@@ -1,7 +1,7 @@
 // Network first (the local server always serves the latest model),
 // cache fallback so the viewer still opens without the server.
 // The cached model is the encrypted .enc file, never the plain GLB.
-const CACHE = 'woodmood-3d-v2';
+const CACHE = 'woodmood-3d-v3';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.json',
   'vendor/model-viewer-4.4.0.min.js', 'model/stove.glb.enc',

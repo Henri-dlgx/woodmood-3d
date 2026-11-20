@@ -18,8 +18,13 @@ async function loadEncrypted() {
   const res = await fetch('model/stove.glb.enc', { cache: 'no-cache' });
   if (!res.ok) throw new Error('model ' + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
-  if (new TextDecoder().decode(buf.subarray(0, 4)) !== 'WM3D' || buf[4] !== 1) throw new Error('bad model file');
-  return { salt: buf.subarray(5, 21), iv: buf.subarray(21, 33), ct: buf.subarray(33) };
+  if (new TextDecoder().decode(buf.subarray(0, 4)) !== 'WM3D' || ![1, 2].includes(buf[4])) throw new Error('bad model file');
+  return { version: buf[4], salt: buf.subarray(5, 21), iv: buf.subarray(21, 33), ct: buf.subarray(33) };
+}
+
+async function gunzip(data) {
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Response(stream).arrayBuffer();
 }
 
 async function deriveKey(password, salt, extractable) {
@@ -29,7 +34,8 @@ async function deriveKey(password, salt, extractable) {
 }
 
 async function openWith(key) {
-  const glb = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: encrypted.iv }, key, encrypted.ct);
+  let glb = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: encrypted.iv }, key, encrypted.ct);
+  if (encrypted.version === 2) glb = await gunzip(glb);
   mv.src = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
   gate.hidden = true;
   document.getElementById('panel').hidden = false;
@@ -144,6 +150,31 @@ mv.addEventListener('progress', (e) => {
   const p = e.detail.totalProgress;
   bar.firstElementChild.style.width = `${p * 100}%`;
   bar.classList.toggle('done', p >= 1);
+});
+
+// --- Doors ------------------------------------------------------------------
+// The model has "open_<door>" / "close_<door>" clips; appendAnimation lets
+// each door run on its own (one clip per door at a time, held at its end).
+const doorBox = document.getElementById('doors');
+mv.addEventListener('load', () => {
+  const anims = new Set(mv.availableAnimations || []);
+  let any = false;
+  for (const btn of doorBox.querySelectorAll('[data-door]')) {
+    const ok = anims.has('open_' + btn.dataset.door) && anims.has('close_' + btn.dataset.door);
+    btn.hidden = !ok;
+    btn.setAttribute('aria-pressed', 'false');
+    any ||= ok;
+  }
+  doorBox.hidden = !any;
+});
+doorBox.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-door]');
+  if (!btn) return;
+  const door = btn.dataset.door;
+  const open = btn.getAttribute('aria-pressed') !== 'true';
+  mv.detachAnimation((open ? 'close_' : 'open_') + door, { fade: false });
+  mv.appendAnimation((open ? 'open_' : 'close_') + door, { repetitions: 1 });
+  btn.setAttribute('aria-pressed', String(open));
 });
 
 // --- Controls ---------------------------------------------------------------
