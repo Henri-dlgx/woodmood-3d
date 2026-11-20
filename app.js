@@ -192,6 +192,132 @@ if (doorBox) {
   });
 }
 
+// --- AR floor finder --------------------------------------------------------
+// model-viewer's WebXR mode shows the stove at a guessed height, looks for a
+// horizontal surface along a ray 20° below the screen centre, and drops the
+// stove onto it ("object-placed"). Nothing on screen said so. This adds:
+//  - a message card (searching / tip after 8 s / found / tracking lost)
+//  - a target ring where the detector looks: dashed while searching, a green
+//    ellipse lying on the floor once a surface is found (own hit-test source
+//    on the same AR session, same ray as model-viewer).
+const arGuide = document.getElementById('arGuide');
+const reticle = document.getElementById('reticle');
+const arCard = document.getElementById('arCard');
+const arTitle = document.getElementById('arTitle');
+const arText = document.getElementById('arText');
+const RAY_DOWN = 20 * Math.PI / 180;
+const MSG = {
+  floor: {
+    searching: ['Cherchez le sol', 'Pointez le téléphone vers le sol et balayez lentement de gauche à droite.'],
+    tip: ['Toujours en recherche…', "Visez un sol texturé (parquet, carrelage, tapis) dans une pièce bien éclairée ; évitez les sols unis ou brillants."],
+    found: ['Sol détecté ✓', 'Glissez pour déplacer le poêle · deux doigts pour le tourner.'],
+    lost: ['Suivi perdu', 'Bougez plus lentement et éclairez la pièce.'],
+  },
+  wall: {
+    searching: ['Cherchez le mur', 'Pointez le téléphone vers le mur et balayez lentement.'],
+    tip: ['Toujours en recherche…', 'Un mur avec des détails (prises, cadres, texture) se détecte plus facilement.'],
+    found: ['Mur détecté ✓', 'Glissez pour déplacer le poêle le long du mur.'],
+    lost: ['Suivi perdu', 'Bougez plus lentement et éclairez la pièce.'],
+  },
+};
+let placed = false, placedAt = 0, tipTimer = 0, fadeTimer = 0;
+
+function setCard(state, key = state) {
+  const set = MSG[mv.arPlacement === 'wall' ? 'wall' : 'floor'];
+  arCard.dataset.state = state;
+  arCard.classList.remove('fade');
+  arTitle.textContent = set[key][0];
+  arText.textContent = set[key][1];
+  clearTimeout(fadeTimer);
+  if (state === 'found') fadeTimer = setTimeout(() => arCard.classList.add('fade'), 4000);
+}
+
+mv.addEventListener('ar-status', (e) => {
+  const s = e.detail.status;
+  if (s === 'session-started') {
+    placed = false;
+    arGuide.hidden = false;
+    setCard('searching');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => { if (!placed) setCard('searching', 'tip'); }, 8000);
+  } else if (s === 'object-placed') {
+    placed = true; placedAt = performance.now();
+    clearTimeout(tipTimer);
+    setCard('found');
+  } else if (s === 'not-presenting' || s === 'failed') {
+    arGuide.hidden = true; reticle.hidden = true;
+    clearTimeout(tipTimer); clearTimeout(fadeTimer);
+  }
+});
+mv.addEventListener('ar-tracking', (e) => {
+  if (arGuide.hidden) return;
+  if (e.detail.status === 'not-tracking') setCard('lost');
+  else setCard(placed ? 'found' : 'searching');
+});
+
+// 4x4 column-major matrix (WebXR) times vec4
+const mul = (m, v) => [0, 1, 2, 3].map((i) => m[i] * v[0] + m[4 + i] * v[1] + m[8 + i] * v[2] + m[12 + i] * v[3]);
+
+function showReticle(cx, cy, w, h, state) {
+  w = Math.min(Math.max(w, 24), 420); h = Math.min(Math.max(h, 12), 420);
+  reticle.hidden = false;
+  reticle.dataset.state = state;
+  reticle.style.width = w + 'px'; reticle.style.height = h + 'px';
+  reticle.style.margin = `${-h / 2}px 0 0 ${-w / 2}px`;
+  reticle.style.transform = `translate(${cx}px, ${cy}px)`;
+}
+
+async function startReticle(session) {
+  if (mv.arPlacement === 'wall' || typeof XRRay === 'undefined') return;
+  const local = await session.requestReferenceSpace('local');
+  const viewer = await session.requestReferenceSpace('viewer');
+  const source = await session.requestHitTestSource({
+    space: viewer,
+    offsetRay: new XRRay(new DOMPoint(0, 0, 0), { x: 0, y: -Math.sin(RAY_DOWN), z: -Math.cos(RAY_DOWN) }),
+  });
+  let running = true;
+  session.addEventListener('end', () => { running = false; try { source.cancel(); } catch {} reticle.hidden = true; });
+  const R = 0.3; // ring radius on the floor, metres
+  const onFrame = (time, frame) => {
+    if (!running) return;
+    session.requestAnimationFrame(onFrame);
+    if (arGuide.hidden || (placed && performance.now() - placedAt > 1500)) { reticle.hidden = true; return; }
+    const pose = frame.getViewerPose(local);
+    if (!pose) return;
+    const view = pose.views[0];
+    const P = view.projectionMatrix, V = view.transform.inverse.matrix;
+    const W = arGuide.clientWidth || innerWidth, H = arGuide.clientHeight || innerHeight;
+    const toScreen = (c) => (c[3] <= 0 ? null : [(c[0] / c[3] + 1) / 2 * W, (1 - c[1] / c[3]) / 2 * H]);
+    const hit = frame.getHitTestResults(source)[0];
+    const hp = hit && hit.getPose(local);
+    if (hp && hp.transform.matrix[5] > 0.75) {          // surface normal points up: a floor
+      const m = hp.transform.matrix, x = m[12], y = m[13], z = m[14];
+      const pts = [[x, y, z], [x + R, y, z], [x - R, y, z], [x, y, z + R], [x, y, z - R]]
+        .map((q) => toScreen(mul(P, mul(V, [...q, 1]))));
+      if (pts.every(Boolean)) {
+        const xs = pts.slice(1).map((p) => p[0]), ys = pts.slice(1).map((p) => p[1]);
+        showReticle(pts[0][0], pts[0][1], Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 'found');
+        return;
+      }
+    }
+    if (placed) return;
+    // nothing yet: dashed ring where the detector is looking (1.5 m along the ray)
+    const p = toScreen(mul(P, [0, -Math.sin(RAY_DOWN) * 1.5, -Math.cos(RAY_DOWN) * 1.5, 1]));
+    if (p) showReticle(p[0], p[1], 76, 76, 'searching');
+  };
+  session.requestAnimationFrame(onFrame);
+}
+
+// Catch the AR session model-viewer opens (only when "Voir chez moi" is used)
+if (navigator.xr && typeof navigator.xr.requestSession === 'function') {
+  const original = navigator.xr.requestSession.bind(navigator.xr);
+  navigator.xr.requestSession = async (mode, init) => {
+    const session = await original(mode, init);
+    if (mode === 'immersive-ar') startReticle(session).catch((err) => console.info('AR ring unavailable:', err.message));
+    return session;
+  };
+}
+
 // --- Controls ---------------------------------------------------------------
 const dimToggle = document.getElementById('dimToggle');
 dimToggle.addEventListener('click', () => {

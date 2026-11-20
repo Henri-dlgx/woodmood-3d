@@ -120,6 +120,48 @@ model-viewer.no-dims .dim, model-viewer.no-dims .dim-lines { display: none; }
   .ar-btn { left: 16px; transform: none; padding: 13px 20px; font-size: 15px; }
 }
 
+/* AR floor finder */
+.ar-guide { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.ar-guide[hidden], .reticle[hidden] { display: none; }
+.ar-card {
+  position: absolute; left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top));
+  margin: 0 auto; max-width: 420px;
+  display: flex; gap: 12px; align-items: center;
+  padding: 12px 14px; border-radius: 14px;
+  background: rgba(10,10,10,.82); color: #fff;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.12);
+  transition: opacity .4s, border-color .3s;
+}
+.ar-card strong { font-size: 16px; display: block; }
+.ar-card p { margin: 3px 0 0; font-size: 13.5px; color: #d0d0d0; line-height: 1.35; }
+.ar-card[data-state="found"] { border-color: #3fbf6a; }
+.ar-card[data-state="found"] strong { color: #5fd685; }
+.ar-card[data-state="lost"] { border-color: #e0a030; }
+.ar-card.fade { opacity: 0; }
+.ar-phone { width: 48px; height: 32px; flex: none; }
+.ar-phone .floor { stroke: #888; stroke-width: 2; stroke-dasharray: 3 3; }
+.ar-phone .phone { fill: none; stroke: #fff; stroke-width: 2; transform-origin: 24px 26px;
+  animation: sweep 2.4s ease-in-out infinite; }
+.ar-card[data-state="found"] .ar-phone .phone { animation: none; stroke: #5fd685; }
+@keyframes sweep {
+  0%, 100% { transform: translateX(-12px) rotate(-18deg); }
+  50%      { transform: translateX(12px) rotate(18deg); }
+}
+.reticle {
+  position: absolute; left: 0; top: 0; width: 76px; height: 76px;
+  margin: -38px 0 0 -38px; border-radius: 50%;
+  border: 3px dashed rgba(255,255,255,.85);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+  animation: pulse 1.4s ease-in-out infinite;
+  will-change: transform, width, height;
+}
+.reticle[data-state="found"] {
+  border: 3px solid #5fd685; animation: none;
+  background: radial-gradient(closest-side, rgba(95,214,133,.35), rgba(95,214,133,.08) 70%, transparent);
+}
+@keyframes pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+
 .progress { position: absolute; left: 0; right: 0; top: 0; height: 3px; }
 .progress span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .progress.done { display: none; }

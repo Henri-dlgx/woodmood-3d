@@ -3,9 +3,9 @@
 // cache fallback so the viewer still opens offline.
 // The cached model is the encrypted .enc file, never the plain GLB.
 // Bump CACHE and the ?v= in index.html together.
-const CACHE = 'woodmood-3d-v6';
+const CACHE = 'woodmood-3d-v7';
 const SHELL = [
-  './', 'index.html', 'style.css?v=6', 'app.js?v=6', 'manifest.json',
+  './', 'index.html', 'style.css?v=7', 'app.js?v=7', 'manifest.json',
   'vendor/model-viewer-4.4.0.min.js', 'model/stove.glb.enc',
   'logo.svg', 'icon-192.png', 'icon-512.png',
 ];
